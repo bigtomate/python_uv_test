@@ -53,35 +53,17 @@ def save_in_db(df):
         primary key (id)
     ) ;
 """
-    SQL_CREATE_UNIQUE_IDX = """CREATE UNIQUE INDEX if not exists uidx_division_date
-    ON holiday (division, date);"""
-    cursor.execute(SQL_CREATE)
-    cursor.execute(SQL_CREATE_UNIQUE_IDX)
+    result = cursor.execute(SQL_CREATE)
     conn.commit()
 
     engine = create_engine('postgresql://postgres:password@localhost:5433/etl',
                                 echo=False,
                                 pool_pre_ping=True)
+
+    df.to_sql('holiday',  con=engine, if_exists='append', index=False) 
     
-    existing = pd.read_sql_query(
-        "SELECT division, date FROM holiday;",
-        engine
-    )
 
-    existing_keys = set(existing.itertuples(index=False, name=None))
-    new_keys = set(df[['division', 'date']].itertuples(index=False, name=None))
-    keys_to_insert = new_keys - existing_keys
-
-    filtered_df = df[
-        df[['division', 'date']]
-        .apply(tuple, axis=1)
-        .isin(keys_to_insert)
-    ]
-
-    filtered_df.to_sql('holiday',  con=engine, if_exists='append', index=False) 
-    print(f"Inserting {len(filtered_df)} new entries.")
-
-region = input('enter a region: ')
-df = extract_holidays(region)
+df = extract_holidays('england-and-wales')
 df = transform(df)
+print(df.head())
 save_in_db(df)
